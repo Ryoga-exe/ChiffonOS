@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
         .f,
         .c,
     });
-
+    // RV64IM
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .riscv64,
         .os_tag = .freestanding,
@@ -34,8 +34,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    kernel.entry = .{ .symbol_name = "boot" };
-    kernel.setLinkerScript(b.path("kernel.ld"));
+    kernel.entry = .{ .symbol_name = "_start" };
+    kernel.setLinkerScript(b.path("src/kernel.ld"));
     b.installArtifact(kernel);
 
     const kernel_step = b.step("kernel", "Build the kernel");
