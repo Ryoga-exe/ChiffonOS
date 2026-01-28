@@ -1,27 +1,51 @@
-const std = @import("std");
-const ChiffonOS = @import("ChiffonOS");
+extern const __bss_start: u8;
+extern const __bss_end: u8;
+extern const _stack_top: u8;
 
-pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    try ChiffonOS.bufferedPrint();
+pub export fn main() callconv(.c) noreturn {
+    const start = @intFromPtr(&__bss_start);
+    const end = @intFromPtr(&__bss_end);
+    const len: usize = end - start;
+
+    const bss_ptr: [*]u8 = @ptrFromInt(start);
+    @memset(bss_ptr[0..len], 0);
+
+    uart.putString("hello world!\n");
+    uart.putString("next line\n");
+
+    while (true) {
+        asm volatile ("wfi");
+    }
 }
 
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
+    asm volatile (
+        \\ mv sp, %[stack]
+        \\ j main
+        :
+        : [stack] "r" (@intFromPtr(&_stack_top)),
+        : .{ .memory = true });
 }
 
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
+const uart = struct {
+    const base = 0x10000000;
+    const rbr: *volatile u8 = @ptrFromInt(base + 0x00); // read
+    const thr: *volatile u8 = @ptrFromInt(base + 0x00); // write
+    const lsr: *volatile u8 = @ptrFromInt(base + 0x05); // status
+
+    pub fn init() void {}
+
+    pub fn putChar(c: u8) void {
+        if (c == '\n') {
+            putChar('\r');
         }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
-}
+        while ((lsr.* & 0x20) == 0) {}
+        thr.* = c;
+    }
+
+    pub fn putString(s: []const u8) void {
+        for (s) |c| {
+            putChar(c);
+        }
+    }
+};

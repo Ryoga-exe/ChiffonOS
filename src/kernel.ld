@@ -4,7 +4,7 @@ SECTIONS {
     . = 0x80000000;
 
     .text :{
-        *(.text.init);
+        KEEP(*(.text.init));
         *(.text*);
     }
 
