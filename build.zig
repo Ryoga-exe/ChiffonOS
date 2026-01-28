@@ -25,49 +25,37 @@ pub fn build(b: *std.Build) void {
         .preferred_optimize_mode = .ReleaseSmall,
     });
 
-    const mod = b.addModule("ChiffonOS", .{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-    });
-
-    const exe = b.addExecutable(.{
-        .name = "ChiffonOS",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
+    const kernel = b.addExecutable(.{
+        .name = "kernel.elf",
+        .root_module = b.addModule("kernel", .{
+            .root_source_file = b.path("src/kernel.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "ChiffonOS", .module = mod },
-            },
         }),
     });
 
-    b.installArtifact(exe);
+    kernel.entry = .{ .symbol_name = "boot" };
+    kernel.setLinkerScript(b.path("kernel.ld"));
+    b.installArtifact(kernel);
 
-    const run_step = b.step("run", "Run the app");
+    const kernel_step = b.step("kernel", "Build the kernel");
+    kernel_step.dependOn(&kernel.step);
 
-    const run_cmd = b.addRunArtifact(exe);
-    run_step.dependOn(&run_cmd.step);
-
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
+    const qemu_cmd = b.addSystemCommand(&.{
+        "qemu-system-riscv64",
+        "-machine",
+        "virt",
+        "-bios",
+        "none",
+        "-nographic",
+        "-serial",
+        "mon:stdio",
+        "--no-reboot",
+        "-kernel",
+        b.getInstallPath(.bin, kernel.name),
     });
+    qemu_cmd.step.dependOn(b.getInstallStep());
 
-    const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
+    const run_step = b.step("run", "Run the kernel on QEMU");
+    run_step.dependOn(&qemu_cmd.step);
 }
