@@ -108,7 +108,8 @@ pub const TarFs = struct {
         });
 
         while (true) {
-            const file = it.next() catch return null orelse break;
+            const maybe = it.next() catch return null;
+            const file = maybe orelse break;
             if (file.kind != .file) continue;
             if (!pathEquals(path, file.name)) continue;
             if (file.size > std.math.maxInt(usize)) return null;
