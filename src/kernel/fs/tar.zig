@@ -1,5 +1,4 @@
 const std = @import("std");
-const mem = @import("../mem.zig");
 
 pub const TarFs = struct {
     base: [*]const u8,
@@ -114,11 +113,10 @@ pub const TarFs = struct {
             if (!pathEquals(path, file.name)) continue;
             if (file.size > std.math.maxInt(usize)) return null;
             const size: usize = @intCast(file.size);
-            const a = mem.allocator();
-            const buf = a.alloc(u8, size) catch return null;
-            var writer = std.Io.Writer.fixed(buf);
-            std.tar.Iterator.streamRemaining(&it, file, &writer) catch return null;
-            return buf;
+            const start: usize = reader.seek;
+            const end = start + size;
+            if (end > self.size) return null;
+            return self.bytes()[start..end];
         }
         return null;
     }
