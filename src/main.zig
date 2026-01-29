@@ -81,5 +81,5 @@ const mb = @import("mailbox.zig");
 const gfxm = @import("gfx.zig");
 const Uart = @import("Uart.zig");
 const trap = @import("trap.zig");
-const alloc = @import("alloc.zig");
+const alloc = @import("mem/alloc.zig");
 const shell = @import("shell.zig");

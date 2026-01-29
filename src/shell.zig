@@ -1,6 +1,6 @@
 const std = @import("std");
 const Uart = @import("Uart.zig");
-const alloc = @import("alloc.zig");
+const alloc = @import("mem/alloc.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {
     var line_buf: [128]u8 = undefined;
