@@ -55,6 +55,8 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
     var it = std.mem.tokenizeScalar(u8, line, ' ');
     const cmd = it.next() orelse return;
 
+    // NOTE: std.StaticStringMap とかのほうが良さそう
+
     if (std.mem.eql(u8, cmd, "help")) {
         w.writeAll(
             \\commands:
