@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) void {
         .preferred_optimize_mode = .ReleaseSmall,
     });
 
+    const common = b.addModule("common", .{
+        .root_source_file = b.path("src/common/root.zig"),
+        .target = target,
+    });
+
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
         .root_module = b.addModule("kernel", .{
@@ -32,6 +37,9 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .code_model = .medium,
+            .imports = &.{
+                .{ .name = "common", .module = common },
+            },
         }),
     });
 
