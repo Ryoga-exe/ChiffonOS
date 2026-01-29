@@ -1,9 +1,13 @@
 ENTRY(_start)
 
 __ram_base      = 0x80000000;
+__ram_size      = 0x01000000; /* 16 MiB (keep in sync with pynq/boot.ipynb RAM_BYTES) */
+__ram_end       = __ram_base + __ram_size;
 __rsvd_size     = 0x00004000; /* 16 KiB reserved window */
 __mailbox_addr  = 0x80002000;
 __heap_size     = 0x00010000; /* 64 KiB heap */
+__app_base      = 0x80400000; /* app load base */
+__app_limit     = __ram_end;  /* app load limit */
 
 SECTIONS {
     . = __ram_base;

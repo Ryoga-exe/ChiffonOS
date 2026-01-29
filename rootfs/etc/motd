@@ -1,0 +1,3 @@
+Welcome to ChiffonOS!
+Try: ls, stat /etc/motd, cat /bin/hello.txt
+Exec: exec /bin/hello.elf
