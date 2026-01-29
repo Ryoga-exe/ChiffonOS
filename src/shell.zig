@@ -3,6 +3,7 @@ const Uart = @import("drivers/Uart.zig");
 const mem = @import("mem.zig");
 const timer = @import("sys/timer.zig");
 const fs = @import("fs.zig");
+const exec = @import("exec.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {
     var line_buf: [128]u8 = undefined;
@@ -69,6 +70,7 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
             \\  ls              list files
             \\  stat <path>     show file info
             \\  cat <path>      print file contents
+            \\  exec <path>     load ELF and jump
             \\  panic           trigger panic
             \\  trap            trigger ebreak
             \\  ticks           show timer ticks
@@ -142,6 +144,24 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
         };
         fs.fs.cat(w, path);
         return;
+    }
+
+    if (std.mem.eql(u8, cmd, "exec")) {
+        const path = it.next() orelse {
+            w.writeAll("usage: exec <path>\n") catch {};
+            w.flush() catch {};
+            return;
+        };
+        const data = fs.fs.readFile(path) orelse {
+            w.writeAll("[exec] not found\n") catch {};
+            w.flush() catch {};
+            return;
+        };
+        exec.exec(data, w) catch |err| {
+            w.print("[exec] error: {s}\n", .{@errorName(err)}) catch {};
+            w.flush() catch {};
+            return;
+        };
     }
 
     if (std.mem.eql(u8, cmd, "panic")) {
