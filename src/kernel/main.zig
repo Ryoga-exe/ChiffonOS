@@ -107,7 +107,7 @@ pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
 
 const mb = @import("drivers/mailbox.zig");
 const gfxm = @import("gfx/gfx.zig");
-const Uart = @import("drivers/Uart.zig");
+const Uart = @import("common").Uart;
 const trap = @import("sys/trap.zig");
 const timer = @import("sys/timer.zig");
 const mem = @import("mem.zig");

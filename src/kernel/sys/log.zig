@@ -1,5 +1,5 @@
 const std = @import("std");
-const Uart = @import("../drivers/Uart.zig");
+const Uart = @import("common").Uart;
 
 fn log(
     comptime level: std.log.Level,

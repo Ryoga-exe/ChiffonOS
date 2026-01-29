@@ -1,5 +1,5 @@
 const std = @import("std");
-const Uart = @import("drivers/Uart.zig");
+const Uart = @import("common").Uart;
 const mem = @import("mem.zig");
 const timer = @import("sys/timer.zig");
 const fs = @import("fs.zig");
@@ -30,22 +30,22 @@ fn readLine(buf: []u8) []u8 {
         const c = Uart.getChar();
         switch (c) {
             '\r', '\n' => {
-                Uart.putChar('\n');
+                Uart.putc('\n');
                 break;
             },
             0x08, 0x7f => { // backspace / delete
                 if (len > 0) {
                     len -= 1;
-                    Uart.putChar(0x08);
-                    Uart.putChar(' ');
-                    Uart.putChar(0x08);
+                    Uart.putc(0x08);
+                    Uart.putc(' ');
+                    Uart.putc(0x08);
                 }
             },
             else => {
                 if (len + 1 < buf.len) {
                     buf[len] = c;
                     len += 1;
-                    Uart.putChar(c);
+                    Uart.putc(c);
                 }
             },
         }
