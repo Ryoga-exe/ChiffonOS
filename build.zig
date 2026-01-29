@@ -35,6 +35,11 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const use_qemu = b.option(bool, "qemu", "Use QEMU virt") orelse false;
+    const options = b.addOptions();
+    options.addOption(bool, "qemu", use_qemu);
+    kernel.root_module.addOptions("build_options", options);
+
     kernel.entry = .{ .symbol_name = "_start" };
     kernel.setLinkerScript(b.path("src/kernel.ld"));
     b.installArtifact(kernel);
