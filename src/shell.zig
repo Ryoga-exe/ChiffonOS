@@ -1,6 +1,7 @@
 const std = @import("std");
 const Uart = @import("drivers/Uart.zig");
 const mem = @import("mem.zig");
+const timer = @import("sys/timer.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {
     var line_buf: [128]u8 = undefined;
@@ -63,6 +64,8 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
             \\  reset           reset bump allocator
             \\  panic           trigger panic
             \\  trap            trigger ebreak
+            \\  ticks           show timer ticks
+            \\  sleep <ticks>   wait for N timer ticks
             \\
         ) catch {};
         w.flush() catch {};
@@ -106,6 +109,31 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
 
     if (std.mem.eql(u8, cmd, "panic")) {
         @panic("panic from shell");
+    }
+
+    if (std.mem.eql(u8, cmd, "ticks")) {
+        w.print("[timer] ticks={d} now={d} interval={d}\n", .{ timer.ticks, timer.now(), timer.interval }) catch {};
+        w.flush() catch {};
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "sleep")) {
+        const arg = it.next() orelse {
+            w.writeAll("usage: sleep <ticks>\n") catch {};
+            w.flush() catch {};
+            return;
+        };
+        const duration = parseUsize(arg) orelse 0;
+        if (duration == 0) {
+            w.writeAll("usage: sleep <ticks>\n") catch {};
+            w.flush() catch {};
+            return;
+        }
+        const start = timer.ticks;
+        while (timer.ticks - start < duration) {
+            asm volatile ("wfi");
+        }
+        return;
     }
 
     if (std.mem.eql(u8, cmd, "trap")) {
