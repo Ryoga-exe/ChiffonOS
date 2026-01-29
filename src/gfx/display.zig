@@ -1,4 +1,4 @@
-const rb = @import("regbus.zig");
+const rb = @import("../drivers/regbus.zig");
 
 const offset = struct {
     const addr: u32 = 0x0000;

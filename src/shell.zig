@@ -1,5 +1,5 @@
 const std = @import("std");
-const Uart = @import("Uart.zig");
+const Uart = @import("drivers/Uart.zig");
 const mem = @import("mem.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {

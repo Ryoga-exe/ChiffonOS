@@ -1,6 +1,6 @@
 const std = @import("std");
 const csr = @import("csr.zig");
-const Uart = @import("Uart.zig");
+const Uart = @import("../drivers/Uart.zig");
 
 pub const TrapFrame = extern struct {
     x0: usize,

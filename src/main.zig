@@ -4,8 +4,8 @@ extern const __bss_start: u8;
 extern const __bss_end: u8;
 extern const _stack_top: u8;
 
-pub const std_options = @import("log.zig").default_log_options;
-pub const panic = @import("panic.zig").panic_fn;
+pub const std_options = @import("sys/log.zig").default_log_options;
+pub const panic = @import("sys/panic.zig").panic_fn;
 
 pub export fn main() callconv(.c) noreturn {
     // bss clear
@@ -77,9 +77,9 @@ pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
         : .{ .memory = true });
 }
 
-const mb = @import("mailbox.zig");
-const gfxm = @import("gfx.zig");
-const Uart = @import("Uart.zig");
-const trap = @import("trap.zig");
+const mb = @import("drivers/mailbox.zig");
+const gfxm = @import("gfx/gfx.zig");
+const Uart = @import("drivers/Uart.zig");
+const trap = @import("sys/trap.zig");
 const mem = @import("mem.zig");
 const shell = @import("shell.zig");
