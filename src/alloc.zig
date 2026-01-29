@@ -20,9 +20,9 @@ pub const BumpAllocator = struct {
 
     pub fn alloc(self: *BumpAllocator, size: usize, alignment: usize) ?[*]u8 {
         const alignment_value = if (alignment == 0) @alignOf(usize) else alignment;
-        std.debug.assert(isPowerOfTwo(alignment_value));
+        std.debug.assert(std.math.isPowerOfTwo(alignment_value));
 
-        const aligned = alignUp(self.next, alignment_value);
+        const aligned = std.mem.alignForward(usize, self.next, alignment_value);
         const new_next = aligned + size;
         if (new_next > self.end) return null;
 
@@ -54,6 +54,13 @@ pub const BumpAllocator = struct {
     pub fn remainingBytes(self: *const BumpAllocator) usize {
         return self.end - self.next;
     }
+
+    pub fn allocator(self: *BumpAllocator) std.mem.Allocator {
+        return .{
+            .ptr = self,
+            .vtable = &vtable,
+        };
+    }
 };
 
 pub var heap: BumpAllocator = .{ .start = 0, .end = 0, .next = 0 };
@@ -62,10 +69,25 @@ pub fn init() void {
     heap = BumpAllocator.init();
 }
 
-fn alignUp(value: usize, alignment_value: usize) usize {
-    return (value + alignment_value - 1) & ~(alignment_value - 1);
-}
+const vtable = std.mem.Allocator.VTable{
+    .alloc = allocVTable,
+    .resize = std.mem.Allocator.noResize,
+    .remap = std.mem.Allocator.noRemap,
+    .free = std.mem.Allocator.noFree,
+};
 
-fn isPowerOfTwo(value: usize) bool {
-    return value != 0 and (value & (value - 1)) == 0;
+fn allocVTable(
+    ctx: *anyopaque,
+    len: usize,
+    alignment: std.mem.Alignment,
+    ret_addr: usize,
+) ?[*]u8 {
+    _ = ret_addr;
+    const self: *BumpAllocator = @ptrCast(@alignCast(ctx));
+    const alignment_value = alignment.toByteUnits();
+    const aligned = std.mem.alignForward(usize, self.next, alignment_value);
+    const new_next = aligned + len;
+    if (new_next > self.end) return null;
+    self.next = new_next;
+    return @ptrFromInt(aligned);
 }

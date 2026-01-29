@@ -1,0 +1,90 @@
+## 良いところ
+
+* `__heap_start/__heap_end` をリンカで切って bump する形は王道。
+* `alignForward` + `isPowerOfTwo` でアラインメント条件を守れてる。
+* `allocSliceType` で `mul` を `catch` していて **サイズ計算オーバーフローが安全**。
+* `allocator()` を返して `std` の API（`ArrayList` とか）にそのまま刺せる。
+
+---
+
+## 直したい/落とし穴
+
+### 1) `aligned + size` のオーバーフロー
+
+`new_next = aligned + size` は `usize` オーバーフローし得ます（`aligned` が大きくて `size` が大きいと wrap）。
+OS だと「end を超えたら null」で守りたいので、ここは `std.math.add` を使うのが鉄板です。
+
+```zig
+const new_next = std.math.add(usize, aligned, size) catch return null;
+if (new_next > self.end) return null;
+```
+
+vtable側の `len` でも同じ。
+
+---
+
+### 2) `alignment == 0` の扱い
+
+あなたの自前 `alloc` は `alignment==0` を許容して `@alignOf(usize)` に落としてるけど、`std.mem.Allocator` 経由では `alignment: std.mem.Alignment` が来るので基本 0 は来ません。
+
+ただ **API の一貫性**の観点では、`allocVTable` 側も念のため「最低でも `@alignOf(usize)`」にしておくと事故が減ります（将来の変更にも強い）。
+
+---
+
+### 3) `allocType` の `@alignCast`
+
+`alloc(@sizeOf(T), @alignOf(T))` しているので理屈上は揃うけど、`@alignCast(p)` は「そのアラインメントだと信じる」なので、もし `alloc` がバグってたら未定義動作に近い世界になります。
+
+対策としては：
+
+* いまのままでも OK（`alloc` が正しければ安全）
+* デバッグ時だけ `std.debug.assert((@intFromPtr(p) & (@alignOf(T)-1)) == 0);` を挟むのもアリ
+
+---
+
+### 4) `reset()` は強力すぎるので “使い所” を決める
+
+bump は “まとめて捨てる” が強みなので `reset()` があるのは良いんだけど、OS のコードが増えると **どこかが確保したメモリを参照しているのに reset して壊す**事故が起きやすい。
+
+よくある運用:
+
+* “ブート専用ヒープ” として init 時だけ使う（カーネル常駐データ構築が終わったら reset して別アロケータへ移行）
+* もしくは “フレーム/一時領域” として用途限定（毎フレーム reset など）
+
+---
+
+### 5) `std.mem.Allocator` としての期待値
+
+`resize/remap/free` を `no*` にしてるのは bump らしくて正しいです。ただ、これを使う側が `realloc` 相当を期待すると失敗します。
+
+* `std.ArrayList` は伸長で `realloc` が走ることがあるので、「確実に動かす」なら容量を見積もって `ensureTotalCapacity` する運用に寄せるか、
+* bump を “裏で使う” 場合は `FixedBufferAllocator` 的に “大きいバッファの上に構築” の方がトラブルが少ないこともあります。
+
+---
+
+## 小さめパッチ（安全性アップ版）
+
+`alloc` と `allocVTable` の加算だけ直すのが一番効きます。
+
+```zig
+const new_next = std.math.add(usize, aligned, size) catch return null;
+if (new_next > self.end) return null;
+```
+
+```zig
+const new_next = std.math.add(usize, aligned, len) catch return null;
+if (new_next > self.end) return null;
+```
+
+---
+
+## 次にやると良い拡張（自作OS向け）
+
+* **統計/デバッグ**: peak 使用量、アロケーション回数、失敗回数
+* **“mark / resetTo(mark)”**: 一時領域をネストして使える（パーサ・ローダ・初期化処理で超便利）
+* **ページアロケータへ移行**: bump → 物理ページ管理（bitmap/free list）→ slab/zone … の段階にすると OS っぽくなる
+
+---
+
+この allocator を「ブート中ずっと使う」想定？それとも「ブート専用（初期化だけ）」想定？
+想定が分かると、`mark/resetTo` を入れるか、早めにページアロケータへ繋ぐか、優先順位が決めやすいです。

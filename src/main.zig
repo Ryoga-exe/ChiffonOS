@@ -1,3 +1,5 @@
+const std = @import("std");
+
 extern const __bss_start: u8;
 extern const __bss_end: u8;
 extern const _stack_top: u8;
@@ -33,6 +35,8 @@ pub export fn main() callconv(.c) noreturn {
         \\
     ) catch {};
     w.flush() catch {};
+
+    allocatorSmokeTest(w);
 
     asm volatile ("ebreak");
 
@@ -82,3 +86,27 @@ const gfxm = @import("gfx.zig");
 const Uart = @import("Uart.zig");
 const trap = @import("trap.zig");
 const alloc = @import("alloc.zig");
+
+fn allocatorSmokeTest(w: *std.Io.Writer) void {
+    const heap_start = alloc.heap.start;
+    const heap_end = alloc.heap.end;
+    const heap_size = heap_end - heap_start;
+
+    w.print("[ALLOC] heap 0x{X:0>16}..0x{X:0>16} ({d} bytes)\n", .{ heap_start, heap_end, heap_size }) catch {};
+
+    const a = alloc.heap.allocator();
+    const buf1 = a.alloc(u8, 64) catch {
+        w.print("[ALLOC] alloc 64 bytes failed\n", .{}) catch {};
+        return;
+    };
+    w.print("[ALLOC] alloc 64 @ 0x{X:0>16}\n", .{@intFromPtr(buf1.ptr)}) catch {};
+
+    const buf2 = a.alloc(u32, 16) catch {
+        w.print("[ALLOC] alloc 16 u32 failed\n", .{}) catch {};
+        return;
+    };
+    w.print("[ALLOC] alloc 16 u32 @ 0x{X:0>16}\n", .{@intFromPtr(buf2.ptr)}) catch {};
+
+    w.print("[ALLOC] used={d} remaining={d}\n", .{ alloc.heap.usedBytes(), alloc.heap.remainingBytes() }) catch {};
+    w.flush() catch {};
+}
