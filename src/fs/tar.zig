@@ -6,8 +6,7 @@ pub const TarFs = struct {
     size: usize,
 
     pub fn init(base_addr: usize, size: usize) TarFs {
-        _ = base_addr; // autofix
-        _ = size; // autofix
+        return .{ .base = @ptrFromInt(base_addr), .size = size };
     }
 
     pub fn list(self: *const TarFs, w: *std.Io.Writer) void {
