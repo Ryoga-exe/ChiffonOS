@@ -11,14 +11,18 @@ pub export fn main() callconv(.c) noreturn {
     @memset(bss_ptr[0..len], 0);
 
     uart.putString("hello world!\n");
-    uart.putString("enter char: ");
+    while (true) {
+        uart.putString("enter char: ");
+        const c = uart.getChar();
+        uart.putString("\n");
 
-    const c = uart.getChar();
+        if (c == 'a') {
+            break;
+        }
+        uart.putString("Noh\n");
+    }
 
-    uart.putString("\n");
-    uart.putString("You entered: ");
-    uart.putChar(c);
-    uart.putString("\n");
+    uart.putString("OK\n");
 
     while (true) {
         asm volatile ("wfi");
