@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
         .root_module = b.addModule("kernel", .{
-            .root_source_file = b.path("src/main.zig"),
+            .root_source_file = b.path("src/kernel/main.zig"),
             .target = target,
             .optimize = optimize,
             .code_model = .medium,
@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
     });
 
     kernel.entry = .{ .symbol_name = "_start" };
-    kernel.setLinkerScript(b.path("src/kernel.ld"));
+    kernel.setLinkerScript(b.path("src/kernel/kernel.ld"));
     b.installArtifact(kernel);
 
     const kernel_step = b.step("kernel", "Build the kernel");
