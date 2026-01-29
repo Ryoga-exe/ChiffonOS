@@ -1,5 +1,6 @@
 const std = @import("std");
 const csr = @import("csr.zig");
+const timer = @import("timer.zig");
 const Uart = @import("../drivers/Uart.zig");
 
 pub const TrapFrame = extern struct {
@@ -86,11 +87,42 @@ pub export fn trapEntry() callconv(.naked) void {
         \\ sd t0, 16(sp)
         \\ mv a0, sp
         \\ call trapHandler
-        \\ j .
+        \\ ld ra, 8(sp)
+        \\ ld gp, 24(sp)
+        \\ ld tp, 32(sp)
+        \\ ld t0, 40(sp)
+        \\ ld t1, 48(sp)
+        \\ ld t2, 56(sp)
+        \\ ld s0, 64(sp)
+        \\ ld s1, 72(sp)
+        \\ ld a0, 80(sp)
+        \\ ld a1, 88(sp)
+        \\ ld a2, 96(sp)
+        \\ ld a3, 104(sp)
+        \\ ld a4, 112(sp)
+        \\ ld a5, 120(sp)
+        \\ ld a6, 128(sp)
+        \\ ld a7, 136(sp)
+        \\ ld s2, 144(sp)
+        \\ ld s3, 152(sp)
+        \\ ld s4, 160(sp)
+        \\ ld s5, 168(sp)
+        \\ ld s6, 176(sp)
+        \\ ld s7, 184(sp)
+        \\ ld s8, 192(sp)
+        \\ ld s9, 200(sp)
+        \\ ld s10, 208(sp)
+        \\ ld s11, 216(sp)
+        \\ ld t3, 224(sp)
+        \\ ld t4, 232(sp)
+        \\ ld t5, 240(sp)
+        \\ ld t6, 248(sp)
+        \\ addi sp, sp, 256
+        \\ mret
         ::: .{ .memory = true });
 }
 
-pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) noreturn {
+pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) void {
     var uart_buf: [128]u8 = undefined;
     var writer = Uart.writer(&uart_buf);
     const w = &writer.interface;
@@ -103,6 +135,11 @@ pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) noreturn {
     const bits = @bitSizeOf(usize);
     const is_interrupt = (mcause >> (bits - 1)) != 0;
     const cause = mcause & ((@as(usize, 1) << (bits - 1)) - 1);
+
+    if (is_interrupt and cause == 7) {
+        timer.onInterrupt();
+        return;
+    }
 
     w.print("\n[TRAP] {s}\n", .{if (is_interrupt) "interrupt" else "exception"}) catch {};
     w.print("  mcause = 0x{X:0>16} ({d}) {s}\n", .{ mcause, cause, causeName(cause, is_interrupt) }) catch {};

@@ -17,6 +17,7 @@ pub export fn main() callconv(.c) noreturn {
 
     mem.init();
     trap.init();
+    timer.init(1_000_000);
 
     var uart_buf: [64]u8 = undefined;
     var writer = Uart.writer(&uart_buf);
@@ -81,5 +82,6 @@ const mb = @import("drivers/mailbox.zig");
 const gfxm = @import("gfx/gfx.zig");
 const Uart = @import("drivers/Uart.zig");
 const trap = @import("sys/trap.zig");
+const timer = @import("sys/timer.zig");
 const mem = @import("mem.zig");
 const shell = @import("shell.zig");
