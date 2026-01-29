@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const Feature = std.Target.riscv.Feature;
     const enabled_features = std.Target.riscv.featureSet(&[_]Feature{
         .m,
@@ -47,8 +47,41 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption(bool, "qemu", use_qemu);
 
-    const rootfs_tar = makeRootfsTar(b);
+    const rootfs_wf = b.addWriteFiles();
+    _ = rootfs_wf.addCopyDirectory(b.path("rootfs"), "", .{});
+
+    var apps_dir = try std.fs.cwd().openDir("src/apps/", .{ .iterate = true });
+    defer apps_dir.close();
+    var walker = try apps_dir.walk(b.allocator);
+    defer walker.deinit();
+    while (try walker.next()) |entry| {
+        if (entry.kind != .file or !std.mem.eql(u8, entry.basename, "main.zig")) {
+            continue;
+        }
+
+        if (std.fs.path.dirname(entry.path)) |app_name| {
+            const app = b.addExecutable(.{
+                .name = app_name,
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path(b.fmt("src/apps/{s}", .{entry.path})),
+                    .target = target,
+                    .optimize = optimize,
+                    .code_model = .medium,
+                    .imports = &.{
+                        .{ .name = "common", .module = common },
+                    },
+                }),
+            });
+            app.setLinkerScript(b.path("src/apps/app.ld"));
+            app.entry = .{ .symbol_name = "_start" };
+            _ = rootfs_wf.addCopyFile(app.getEmittedBin(), b.fmt("bin/{s}.elf", .{app_name}));
+        }
+    }
+
+    const rootfs_dir = rootfs_wf.getDirectory();
+    const rootfs_tar = makeRootfsTar(b, rootfs_dir);
     const rootfs_mod = makeRootfsModule(b, rootfs_tar);
+
     kernel.root_module.addOptions("build_options", options);
     kernel.root_module.addAnonymousImport("rootfs", .{
         .root_source_file = rootfs_mod,
@@ -95,7 +128,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&qemu_cmd.step);
 }
 
-fn makeRootfsTar(b: *std.Build) std.Build.LazyPath {
+fn makeRootfsTar(b: *std.Build, rootfs_dir: std.Build.LazyPath) std.Build.LazyPath {
     const tar_cmd = b.addSystemCommand(&.{ "tar", "-cf" });
     tar_cmd.setEnvironmentVariable("COPYFILE_DISABLE", "1"); // macOS
     tar_cmd.setEnvironmentVariable("COPY_EXTENDED_ATTRIBUTES_DISABLE", "1"); // macOS
@@ -103,7 +136,7 @@ fn makeRootfsTar(b: *std.Build) std.Build.LazyPath {
     tar_cmd.addArg("--exclude=.DS_Store"); // macOS
     tar_cmd.addArg("--exclude=._*"); // macOS
     tar_cmd.addArg("-C");
-    tar_cmd.addDirectoryArg(b.path("rootfs"));
+    tar_cmd.addDirectoryArg(rootfs_dir);
     tar_cmd.addArg(".");
     return tar_out;
 }
