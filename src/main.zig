@@ -41,6 +41,15 @@ pub export fn main() callconv(.c) noreturn {
     trap.init();
     timer.init(1_000_000);
 
+    w.writeAll("[INFO] Initialize file system\n") catch {};
+    w.flush() catch {};
+    const bi = bootinfo.read();
+    if (bi) |info| {
+        fs.init(info);
+    } else {
+        fs.initFromBytes(rootfs_bytes);
+    }
+
     if (build_options.qemu) {
         // QEMU
         w.writeAll("[INFO] Running on QEMU virt\n") catch {};
@@ -103,4 +112,7 @@ const trap = @import("sys/trap.zig");
 const timer = @import("sys/timer.zig");
 const mem = @import("mem.zig");
 const shell = @import("shell.zig");
+const bootinfo = @import("bootinfo.zig");
+const fs = @import("fs.zig");
 const build_options = @import("build_options");
+const rootfs_bytes = if (build_options.qemu) @import("rootfs").data else &[_]u8{};
