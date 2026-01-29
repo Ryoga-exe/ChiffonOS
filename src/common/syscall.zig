@@ -7,6 +7,7 @@ pub inline fn exit(code: usize) noreturn {
         \\ mv a0, %[code]
         \\ li a7, %[num]
         \\ ecall
+        \\ ebreak
         :
         : [code] "r" (code),
           [num] "i" (number.exit),
