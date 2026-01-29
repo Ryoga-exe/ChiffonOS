@@ -15,6 +15,7 @@ pub export fn main() callconv(.c) noreturn {
 
     const c = uart.getChar();
 
+    uart.putString("\n");
     uart.putString("You entered: ");
     uart.putChar(c);
     uart.putString("\n");
