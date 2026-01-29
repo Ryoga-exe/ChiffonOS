@@ -37,20 +37,34 @@ pub export fn main() callconv(.c) noreturn {
     ) catch {};
     w.flush() catch {};
 
+    if (build_options.qemu) {
+        // QEMU
+        w.writeAll("[INFO] Running on QEMU virt\n") catch {};
+        w.writeAll("[INFO] Graphics are not supported on QEMU virt\n") catch {};
+        w.flush() catch {};
+    } else {
+        w.writeAll("[INFO] Initialize frame buffer\n") catch {};
+        w.flush() catch {};
+
+        const pair = mb.readFbPair();
+        if (pair.fb0 == 0) {
+            w.writeAll("[ERROR] mailbox fb0=0\n") catch {};
+            w.flush() catch {};
+            while (true) {}
+        }
+
+        w.writeAll("[INFO] Frame buffer is OK, initialize graphics\n") catch {};
+        w.flush() catch {};
+
+        const gfx = gfxm.Gfx.init(pair.fb0, pair.fb1);
+        _ = gfx; // TODO: 画面に絵を出す
+
+        w.writeAll("[INFO] Graphics initialized successfully\n") catch {};
+        w.flush() catch {};
+    }
+
     shell.run(w);
 
-    // const pair = mb.readFbPair();
-    // if (pair.fb0 == 0) {
-    //     uart.putString("mailbox fb0=0\n");
-    //     while (true) {}
-    // }
-    //
-    // uart.putString("[INFO] Frame buffer is OK, initialize graphics\n");
-    //
-    // var gfx = gfxm.Gfx.init(pair.fb0, pair.fb1);
-    //
-    // uart.putString("[INFO] Graphics initialized\n");
-    //
     // var frame: u32 = 0;
     // while (true) : (frame += 1) {
     //     gfx.begin();
@@ -85,3 +99,4 @@ const trap = @import("sys/trap.zig");
 const timer = @import("sys/timer.zig");
 const mem = @import("mem.zig");
 const shell = @import("shell.zig");
+const build_options = @import("build_options");
