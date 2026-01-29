@@ -13,6 +13,8 @@ pub export fn main() callconv(.c) noreturn {
     const p: [*]u8 = @ptrFromInt(start);
     @memset(p[0..len], 0);
 
+    trap.init();
+
     var uart_buf: [64]u8 = undefined;
     var writer = Uart.writer(&uart_buf);
     const w = &writer.interface;
@@ -30,6 +32,8 @@ pub export fn main() callconv(.c) noreturn {
         \\
     ) catch {};
     w.flush() catch {};
+
+    asm volatile ("ebreak");
 
     while (true) {}
 
@@ -75,3 +79,4 @@ pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
 const mb = @import("mailbox.zig");
 const gfxm = @import("gfx.zig");
 const Uart = @import("Uart.zig");
+const trap = @import("trap.zig");
