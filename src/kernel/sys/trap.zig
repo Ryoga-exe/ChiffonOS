@@ -2,6 +2,8 @@ const std = @import("std");
 const csr = @import("csr.zig");
 const timer = @import("timer.zig");
 const Uart = @import("common").Uart;
+const syscall = @import("common").syscall;
+const exec = @import("../exec.zig");
 
 pub const TrapFrame = extern struct {
     x0: usize,
@@ -139,6 +141,15 @@ pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) void {
     if (is_interrupt and cause == 7) {
         timer.onInterrupt();
         return;
+    }
+
+    if (!is_interrupt and cause == 11) {
+        if (tf.a7 == syscall.number.exit) {
+            if (exec.handleExit(tf.a0)) {
+                csr.writeCSR("mepc", exec.exitTrampoline());
+                return;
+            }
+        }
     }
 
     w.print("\n[TRAP] {s}\n", .{if (is_interrupt) "interrupt" else "exception"}) catch {};
