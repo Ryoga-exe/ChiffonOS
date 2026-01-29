@@ -15,10 +15,6 @@ pub export fn main() callconv(.c) noreturn {
     const p: [*]u8 = @ptrFromInt(start);
     @memset(p[0..len], 0);
 
-    mem.init();
-    trap.init();
-    timer.init(1_000_000);
-
     var uart_buf: [64]u8 = undefined;
     var writer = Uart.writer(&uart_buf);
     const w = &writer.interface;
@@ -36,6 +32,14 @@ pub export fn main() callconv(.c) noreturn {
         \\
     ) catch {};
     w.flush() catch {};
+
+    w.writeAll("[INFO] Initialize memory allocator\n") catch {};
+    w.writeAll("[INFO] Initialize trap handler\n") catch {};
+    w.writeAll("[INFO] Initialize timer\n") catch {};
+    w.flush() catch {};
+    mem.init();
+    trap.init();
+    timer.init(1_000_000);
 
     if (build_options.qemu) {
         // QEMU
