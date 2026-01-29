@@ -2,6 +2,9 @@ extern const __bss_start: u8;
 extern const __bss_end: u8;
 extern const _stack_top: u8;
 
+pub const std_options = @import("log.zig").default_log_options;
+pub const panic = @import("panic.zig").panic_fn;
+
 pub export fn main() callconv(.c) noreturn {
     // bss clear
     const start = @intFromPtr(&__bss_start);
@@ -10,17 +13,23 @@ pub export fn main() callconv(.c) noreturn {
     const p: [*]u8 = @ptrFromInt(start);
     @memset(p[0..len], 0);
 
-    uart.putString("booting ChiffonOS...\n\n");
+    var uart_buf: [64]u8 = undefined;
+    var writer = Uart.writer(&uart_buf);
+    const w = &writer.interface;
 
-    uart.putString(
-        \\   _____ _     _  __  __             ____   _____ 
+    w.print("booting ChiffonOS...\n", .{}) catch {};
+    w.flush() catch {};
+
+    w.writeAll(
+        \\   _____ _     _  __  __             ____   _____
         \\  / ____| |   (_)/ _|/ _|           / __ \ / ____|
-        \\ | |    | |__  _| |_| |_ ___  _ __ | |  | | (___  
-        \\ | |    | '_ \| |  _|  _/ _ \| '_ \| |  | |\___ \ 
+        \\ | |    | |__  _| |_| |_ ___  _ __ | |  | | (___
+        \\ | |    | '_ \| |  _|  _/ _ \| '_ \| |  | |\___ \
         \\ | |____| | | | | | | || (_) | | | | |__| |____) |
-        \\  \_____|_| |_|_|_| |_| \___/|_| |_|\____/|_____/ 
+        \\  \_____|_| |_|_|_| |_| \___/|_| |_|\____/|_____/
         \\
-    );
+    ) catch {};
+    w.flush() catch {};
 
     while (true) {}
 
@@ -65,4 +74,4 @@ pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
 
 const mb = @import("mailbox.zig");
 const gfxm = @import("gfx.zig");
-const uart = @import("uart.zig");
+const Uart = @import("Uart.zig");
