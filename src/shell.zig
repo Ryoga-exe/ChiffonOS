@@ -1,6 +1,6 @@
 const std = @import("std");
 const Uart = @import("Uart.zig");
-const alloc = @import("mem/alloc.zig");
+const mem = @import("mem.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {
     var line_buf: [128]u8 = undefined;
@@ -70,10 +70,10 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
     }
 
     if (std.mem.eql(u8, cmd, "mem")) {
-        const start = alloc.heap.start;
-        const end = alloc.heap.end;
-        const used = alloc.heap.usedBytes();
-        const remaining = alloc.heap.remainingBytes();
+        const start = mem.bump.start;
+        const end = mem.bump.end;
+        const used = mem.bump.usedBytes();
+        const remaining = mem.bump.remainingBytes();
         w.print("[mem] heap 0x{X:0>16}..0x{X:0>16} used={d} remaining={d}\n", .{ start, end, used, remaining }) catch {};
         w.flush() catch {};
         return;
@@ -86,7 +86,7 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
             w.flush() catch {};
             return;
         }
-        const a = alloc.heap.allocator();
+        const a = mem.bump.allocator();
         const buf = a.alloc(u8, size) catch {
             w.writeAll("[alloc] out of memory\n") catch {};
             w.flush() catch {};
@@ -98,7 +98,7 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
     }
 
     if (std.mem.eql(u8, cmd, "reset")) {
-        alloc.heap.reset();
+        mem.bump.reset();
         w.writeAll("[alloc] reset\n") catch {};
         w.flush() catch {};
         return;
