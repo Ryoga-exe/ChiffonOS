@@ -1,0 +1,5 @@
+- Minimal tar initramfs
+- Zig's std.tar is awesome!
+- Loaded via bootinfo on PYNQ or embedded on QEMU
+
+日本語のテスト
