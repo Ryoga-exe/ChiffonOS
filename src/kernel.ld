@@ -3,6 +3,7 @@ ENTRY(_start)
 __ram_base      = 0x80000000;
 __rsvd_size     = 0x00004000; /* 16 KiB reserved window */
 __mailbox_addr  = 0x80002000;
+__heap_size     = 0x00010000; /* 64 KiB heap */
 
 SECTIONS {
     . = __ram_base;
@@ -39,12 +40,16 @@ SECTIONS {
     __heap_start = .;
 
     . = ALIGN(16);
+    .heap (NOLOAD) : {
+        . = . + __heap_size;
+    }
+    __heap_end = .;
+
+    . = ALIGN(16);
     .stack (NOLOAD) : {
         . = . + 0x4000;   /* 16 KiB stack */
     }
     _stack_top = .;
-
-    __heap_end = .;
 
     __image_end = .;
 }

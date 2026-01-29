@@ -13,6 +13,7 @@ pub export fn main() callconv(.c) noreturn {
     const p: [*]u8 = @ptrFromInt(start);
     @memset(p[0..len], 0);
 
+    alloc.init();
     trap.init();
 
     var uart_buf: [64]u8 = undefined;
@@ -80,3 +81,4 @@ const mb = @import("mailbox.zig");
 const gfxm = @import("gfx.zig");
 const Uart = @import("Uart.zig");
 const trap = @import("trap.zig");
+const alloc = @import("alloc.zig");
