@@ -38,7 +38,13 @@ pub fn build(b: *std.Build) void {
     const use_qemu = b.option(bool, "qemu", "Use QEMU virt") orelse false;
     const options = b.addOptions();
     options.addOption(bool, "qemu", use_qemu);
+
+    const rootfs_tar = makeRootfsTar(b);
+    const rootfs_mod = makeRootfsModule(b, rootfs_tar);
     kernel.root_module.addOptions("build_options", options);
+    kernel.root_module.addAnonymousImport("rootfs", .{
+        .root_source_file = rootfs_mod,
+    });
 
     kernel.entry = .{ .symbol_name = "_start" };
     kernel.setLinkerScript(b.path("src/kernel.ld"));
@@ -60,6 +66,7 @@ pub fn build(b: *std.Build) void {
     // install
     b.getInstallStep().dependOn(&b.addInstallFile(bin, "kernel.bin").step);
     b.getInstallStep().dependOn(&b.addInstallFile(hex, "kernel.bin.hex").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(rootfs_tar, "rootfs.tar").step);
 
     const qemu_cmd = b.addSystemCommand(&.{
         "qemu-system-riscv64",
@@ -78,6 +85,25 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("run", "Run the kernel on QEMU");
     run_step.dependOn(&qemu_cmd.step);
+}
+
+fn makeRootfsTar(b: *std.Build) std.Build.LazyPath {
+    const tar_cmd = b.addSystemCommand(&.{ "tar", "-cf" });
+    tar_cmd.setEnvironmentVariable("COPYFILE_DISABLE", "1"); // macOS
+    tar_cmd.setEnvironmentVariable("COPY_EXTENDED_ATTRIBUTES_DISABLE", "1"); // macOS
+    const tar_out = tar_cmd.addOutputFileArg("rootfs.tar");
+    tar_cmd.addArg("--exclude=.DS_Store"); // macOS
+    tar_cmd.addArg("--exclude=._*"); // macOS
+    tar_cmd.addArg("-C");
+    tar_cmd.addDirectoryArg(b.path("rootfs"));
+    tar_cmd.addArg(".");
+    return tar_out;
+}
+
+fn makeRootfsModule(b: *std.Build, rootfs_tar: std.Build.LazyPath) std.Build.LazyPath {
+    const wf = b.addWriteFiles();
+    _ = wf.addCopyFile(rootfs_tar, "rootfs.tar");
+    return wf.add("rootfs.zig", "pub const data = @embedFile(\"rootfs.tar\");\n");
 }
 
 fn elf2bin(b: *std.Build, elf: std.Build.LazyPath, out_basename: []const u8) std.Build.LazyPath {
