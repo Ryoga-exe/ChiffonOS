@@ -2,6 +2,7 @@ const std = @import("std");
 const Uart = @import("drivers/Uart.zig");
 const mem = @import("mem.zig");
 const timer = @import("sys/timer.zig");
+const fs = @import("fs.zig");
 
 pub fn run(w: *std.Io.Writer) noreturn {
     var line_buf: [128]u8 = undefined;
@@ -64,6 +65,10 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
             \\  mem             show heap usage
             \\  alloc [n]       allocate n bytes (default 16)
             \\  reset           reset bump allocator
+            \\  fs              show filesystem info
+            \\  ls              list files
+            \\  stat <path>     show file info
+            \\  cat <path>      print file contents
             \\  panic           trigger panic
             \\  trap            trigger ebreak
             \\  ticks           show timer ticks
@@ -106,6 +111,36 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
         mem.bump.reset();
         w.writeAll("[alloc] reset\n") catch {};
         w.flush() catch {};
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "fs")) {
+        fs.fs.info(w);
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "ls")) {
+        fs.fs.list(w);
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "stat")) {
+        const path = it.next() orelse {
+            w.writeAll("usage: stat <path>\n") catch {};
+            w.flush() catch {};
+            return;
+        };
+        fs.fs.stat(w, path);
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "cat")) {
+        const path = it.next() orelse {
+            w.writeAll("usage: cat <path>\n") catch {};
+            w.flush() catch {};
+            return;
+        };
+        fs.fs.cat(w, path);
         return;
     }
 
