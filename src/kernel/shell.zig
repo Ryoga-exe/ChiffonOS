@@ -157,11 +157,12 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
             w.flush() catch {};
             return;
         };
-        exec.exec(data, w) catch |err| {
+        execFromShell(data, w) catch |err| {
             w.print("[exec] error: {s}\n", .{@errorName(err)}) catch {};
             w.flush() catch {};
             return;
         };
+        return;
     }
 
     if (std.mem.eql(u8, cmd, "panic")) {
@@ -204,4 +205,8 @@ fn handleCommand(w: *std.Io.Writer, line: []const u8) void {
 
 fn parseUsize(s: []const u8) ?usize {
     return std.fmt.parseInt(usize, s, 0) catch null;
+}
+
+noinline fn execFromShell(data: []const u8, w: *std.Io.Writer) exec.ExecError!void {
+    try exec.exec(data, w);
 }
