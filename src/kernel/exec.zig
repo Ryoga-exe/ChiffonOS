@@ -1,4 +1,5 @@
 const std = @import("std");
+const csr = @import("sys/csr.zig");
 
 pub const ExecError = error{
     InvalidElf,
@@ -15,7 +16,42 @@ extern const __app_base: u8;
 extern const __app_limit: u8;
 extern const _stack_top: u8;
 
-pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!noreturn {
+const ExecContext = extern struct {
+    saved_sp: usize = 0,
+    saved_pc: usize = 0,
+    saved_gp: usize = 0,
+    saved_tp: usize = 0,
+    saved_s0: usize = 0,
+    saved_s1: usize = 0,
+    saved_s2: usize = 0,
+    saved_s3: usize = 0,
+    saved_s4: usize = 0,
+    saved_s5: usize = 0,
+    saved_s6: usize = 0,
+    saved_s7: usize = 0,
+    saved_s8: usize = 0,
+    saved_s9: usize = 0,
+    saved_s10: usize = 0,
+    saved_s11: usize = 0,
+    exit_code: usize = 0,
+    exit_called: usize = 0,
+    active: usize = 0,
+};
+
+pub export var exec_ctx: ExecContext = .{};
+
+pub fn handleExit(code: usize) bool {
+    if (exec_ctx.active == 0) return false;
+    exec_ctx.exit_code = code;
+    exec_ctx.exit_called = 1;
+    return true;
+}
+
+pub fn exitTrampoline() usize {
+    return @intFromPtr(&execReturnTrampoline);
+}
+
+pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!void {
     var reader = std.Io.Reader.fixed(bytes);
     const hdr = std.elf.Header.read(&reader) catch return error.InvalidElf;
 
@@ -62,14 +98,100 @@ pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!noreturn {
     w.print("[exec] jump to 0x{X:0>16}\n", .{entry}) catch {};
     w.flush() catch {};
 
-    jump(entry);
+    exec_ctx.exit_code = 0;
+    exec_ctx.exit_called = 0;
+    exec_ctx.active = 1;
+    _ = csr.readCSR("mepc");
+    asm volatile (
+        \\ la t0, exec_ctx
+        \\ la t1, 1f
+        \\ sd t1, %[off_pc](t0)
+        \\ sd sp, %[off_sp](t0)
+        \\ sd gp, %[off_gp](t0)
+        \\ sd tp, %[off_tp](t0)
+        \\ sd s0, %[off_s0](t0)
+        \\ sd s1, %[off_s1](t0)
+        \\ sd s2, %[off_s2](t0)
+        \\ sd s3, %[off_s3](t0)
+        \\ sd s4, %[off_s4](t0)
+        \\ sd s5, %[off_s5](t0)
+        \\ sd s6, %[off_s6](t0)
+        \\ sd s7, %[off_s7](t0)
+        \\ sd s8, %[off_s8](t0)
+        \\ sd s9, %[off_s9](t0)
+        \\ sd s10, %[off_s10](t0)
+        \\ sd s11, %[off_s11](t0)
+        \\ la sp, _stack_top
+        \\ jr %[entry]
+        \\1:
+        :
+        : [entry] "r" (entry),
+          [off_pc] "i" (@offsetOf(ExecContext, "saved_pc")),
+          [off_sp] "i" (@offsetOf(ExecContext, "saved_sp")),
+          [off_gp] "i" (@offsetOf(ExecContext, "saved_gp")),
+          [off_tp] "i" (@offsetOf(ExecContext, "saved_tp")),
+          [off_s0] "i" (@offsetOf(ExecContext, "saved_s0")),
+          [off_s1] "i" (@offsetOf(ExecContext, "saved_s1")),
+          [off_s2] "i" (@offsetOf(ExecContext, "saved_s2")),
+          [off_s3] "i" (@offsetOf(ExecContext, "saved_s3")),
+          [off_s4] "i" (@offsetOf(ExecContext, "saved_s4")),
+          [off_s5] "i" (@offsetOf(ExecContext, "saved_s5")),
+          [off_s6] "i" (@offsetOf(ExecContext, "saved_s6")),
+          [off_s7] "i" (@offsetOf(ExecContext, "saved_s7")),
+          [off_s8] "i" (@offsetOf(ExecContext, "saved_s8")),
+          [off_s9] "i" (@offsetOf(ExecContext, "saved_s9")),
+          [off_s10] "i" (@offsetOf(ExecContext, "saved_s10")),
+          [off_s11] "i" (@offsetOf(ExecContext, "saved_s11")),
+        : .{ .memory = true });
+    exec_ctx.active = 0;
+
+    if (exec_ctx.exit_called != 0) {
+        w.print("[exec] exit code={d}\n", .{exec_ctx.exit_code}) catch {};
+        w.flush() catch {};
+    } else {
+        w.writeAll("[exec] returned\n") catch {};
+        w.flush() catch {};
+    }
 }
 
-fn jump(entry: usize) noreturn {
-    const entry_fn: *const fn () callconv(.c) noreturn = @ptrFromInt(entry);
-    asm volatile ("mv sp, %[stack]"
+
+pub export fn execReturnTrampoline() callconv(.naked) void {
+    asm volatile (
+        \\ la t0, exec_ctx
+        \\ ld sp, %[off_sp](t0)
+        \\ ld gp, %[off_gp](t0)
+        \\ ld tp, %[off_tp](t0)
+        \\ ld s0, %[off_s0](t0)
+        \\ ld s1, %[off_s1](t0)
+        \\ ld s2, %[off_s2](t0)
+        \\ ld s3, %[off_s3](t0)
+        \\ ld s4, %[off_s4](t0)
+        \\ ld s5, %[off_s5](t0)
+        \\ ld s6, %[off_s6](t0)
+        \\ ld s7, %[off_s7](t0)
+        \\ ld s8, %[off_s8](t0)
+        \\ ld s9, %[off_s9](t0)
+        \\ ld s10, %[off_s10](t0)
+        \\ ld s11, %[off_s11](t0)
+        \\ li a0, 0
+        \\ ld t0, %[off_pc](t0)
+        \\ jr t0
         :
-        : [stack] "r" (@intFromPtr(&_stack_top)),
+        : [off_sp] "i" (@offsetOf(ExecContext, "saved_sp")),
+          [off_pc] "i" (@offsetOf(ExecContext, "saved_pc")),
+          [off_gp] "i" (@offsetOf(ExecContext, "saved_gp")),
+          [off_tp] "i" (@offsetOf(ExecContext, "saved_tp")),
+          [off_s0] "i" (@offsetOf(ExecContext, "saved_s0")),
+          [off_s1] "i" (@offsetOf(ExecContext, "saved_s1")),
+          [off_s2] "i" (@offsetOf(ExecContext, "saved_s2")),
+          [off_s3] "i" (@offsetOf(ExecContext, "saved_s3")),
+          [off_s4] "i" (@offsetOf(ExecContext, "saved_s4")),
+          [off_s5] "i" (@offsetOf(ExecContext, "saved_s5")),
+          [off_s6] "i" (@offsetOf(ExecContext, "saved_s6")),
+          [off_s7] "i" (@offsetOf(ExecContext, "saved_s7")),
+          [off_s8] "i" (@offsetOf(ExecContext, "saved_s8")),
+          [off_s9] "i" (@offsetOf(ExecContext, "saved_s9")),
+          [off_s10] "i" (@offsetOf(ExecContext, "saved_s10")),
+          [off_s11] "i" (@offsetOf(ExecContext, "saved_s11")),
         : .{ .memory = true });
-    entry_fn();
 }
