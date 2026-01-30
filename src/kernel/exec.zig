@@ -33,6 +33,15 @@ const ExecContext = extern struct {
     saved_s9: usize = 0,
     saved_s10: usize = 0,
     saved_s11: usize = 0,
+
+    // NOTE: We "longjmp" back into the middle of exec() via saved_pc.
+    // The compiler isn't aware that control can re-enter at label `1:` inside
+    // the inline asm, so in optimized builds it may keep live values in
+    // caller-saved registers across the asm. In practice, it sometimes keeps
+    // a base pointer in a0 and reuses it right after returning.
+    // We snapshot a0 before jumping to the app and restore it in the return
+    // trampoline so the resumed code sees the expected value.
+    saved_a0: usize = 0,
     exit_code: usize = 0,
     exit_called: usize = 0,
     active: usize = 0,
@@ -104,6 +113,7 @@ pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!void {
     _ = csr.readCSR("mepc");
     asm volatile (
         \\ la t0, exec_ctx
+        \\ sd a0, %[off_saved_a0](t0)
         \\ la t1, 1f
         \\ sd t1, %[off_pc](t0)
         \\ sd sp, %[off_sp](t0)
@@ -126,6 +136,7 @@ pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!void {
         \\1:
         :
         : [entry] "r" (entry),
+          [off_saved_a0] "i" (@offsetOf(ExecContext, "saved_a0")),
           [off_pc] "i" (@offsetOf(ExecContext, "saved_pc")),
           [off_sp] "i" (@offsetOf(ExecContext, "saved_sp")),
           [off_gp] "i" (@offsetOf(ExecContext, "saved_gp")),
@@ -154,7 +165,6 @@ pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!void {
     }
 }
 
-
 pub export fn execReturnTrampoline() callconv(.naked) void {
     asm volatile (
         \\ la t0, exec_ctx
@@ -173,11 +183,12 @@ pub export fn execReturnTrampoline() callconv(.naked) void {
         \\ ld s9, %[off_s9](t0)
         \\ ld s10, %[off_s10](t0)
         \\ ld s11, %[off_s11](t0)
-        \\ li a0, 0
+        \\ ld a0, %[off_saved_a0](t0)
         \\ ld t0, %[off_pc](t0)
         \\ jr t0
         :
         : [off_sp] "i" (@offsetOf(ExecContext, "saved_sp")),
+          [off_saved_a0] "i" (@offsetOf(ExecContext, "saved_a0")),
           [off_pc] "i" (@offsetOf(ExecContext, "saved_pc")),
           [off_gp] "i" (@offsetOf(ExecContext, "saved_gp")),
           [off_tp] "i" (@offsetOf(ExecContext, "saved_tp")),
