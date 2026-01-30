@@ -70,8 +70,7 @@ pub export fn main() callconv(.c) noreturn {
         w.writeAll("[INFO] Frame buffer is OK, initialize graphics\n") catch {};
         w.flush() catch {};
 
-        const gfx = gfxm.Gfx.init(pair.fb0, pair.fb1);
-        _ = gfx; // TODO: 画面に絵を出す
+        gfxm.initGlobal(pair.fb0, pair.fb1);
 
         w.writeAll("[INFO] Graphics initialized successfully\n") catch {};
         w.flush() catch {};

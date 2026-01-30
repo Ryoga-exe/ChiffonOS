@@ -4,6 +4,7 @@ const timer = @import("timer.zig");
 const Uart = @import("common").Uart;
 const syscall = @import("common").syscall;
 const exec = @import("../exec.zig");
+const gfx = @import("../gfx/gfx.zig");
 
 pub const TrapFrame = extern struct {
     x0: usize,
@@ -126,7 +127,7 @@ pub export fn trapEntry() callconv(.naked) void {
         ::: .{ .memory = true });
 }
 
-pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) void {
+pub export fn trapHandler(tf: *TrapFrame) callconv(.c) void {
     var uart_buf: [128]u8 = undefined;
     var writer = Uart.writer(&uart_buf);
     const w = &writer.interface;
@@ -146,11 +147,58 @@ pub export fn trapHandler(tf: *const TrapFrame) callconv(.c) void {
     }
 
     if (!is_interrupt and cause == 11) {
-        if (tf.a7 == syscall.number.exit) {
-            if (exec.handleExit(tf.a0)) {
-                csr.writeCSR("mepc", exec.exitTrampoline());
+        switch (tf.a7) {
+            syscall.number.exit => {
+                if (exec.handleExit(tf.a0)) {
+                    csr.writeCSR("mepc", exec.exitTrampoline());
+                    return;
+                }
+            },
+            syscall.number.gfx_begin => {
+                tf.a0 = if (gfx.beginGlobal()) 0 else 1;
+                csr.writeCSR("mepc", mepc + 4);
                 return;
-            }
+            },
+            syscall.number.gfx_clear => {
+                tf.a0 = if (gfx.clearGlobal(@intCast(tf.a0))) 0 else 1;
+                csr.writeCSR("mepc", mepc + 4);
+                return;
+            },
+            syscall.number.gfx_fill_rect => {
+                tf.a0 = if (gfx.fillRectGlobal(
+                    @intCast(tf.a0),
+                    @intCast(tf.a1),
+                    @intCast(tf.a2),
+                    @intCast(tf.a3),
+                    @intCast(tf.a4),
+                )) 0 else 1;
+                csr.writeCSR("mepc", mepc + 4);
+                return;
+            },
+            syscall.number.gfx_present => {
+                tf.a0 = if (gfx.presentGlobal()) 0 else 1;
+                csr.writeCSR("mepc", mepc + 4);
+                return;
+            },
+            syscall.number.uart_putc => {
+                const ch: u8 = @truncate(tf.a0);
+                Uart.putc(ch);
+                tf.a0 = 0;
+                csr.writeCSR("mepc", mepc + 4);
+                return;
+            },
+            syscall.number.uart_getc => {
+                if (Uart.hasChar()) {
+                    const out: *u8 = @ptrFromInt(tf.a0);
+                    out.* = Uart.readChar();
+                    tf.a0 = 1;
+                } else {
+                    tf.a0 = 0;
+                }
+                csr.writeCSR("mepc", mepc + 4);
+                return;
+            },
+            else => {},
         }
     }
 
