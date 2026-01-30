@@ -99,6 +99,8 @@ pub export fn main() callconv(.c) noreturn {
 
 pub export fn _start() linksection(".text.init") callconv(.naked) noreturn {
     asm volatile (
+        \\ lui gp, %hi(__global_pointer$)
+        \\ addi gp, gp, %lo(__global_pointer$)
         \\ mv sp, %[stack]
         \\ j main
         :

@@ -87,6 +87,8 @@ pub export fn trapEntry() callconv(.naked) void {
         \\ sd t6, 248(sp)
         \\ addi t0, sp, 256
         \\ sd t0, 16(sp)
+        \\ lui gp, %hi(__global_pointer$)
+        \\ addi gp, gp, %lo(__global_pointer$)
         \\ mv a0, sp
         \\ call trapHandler
         \\ ld ra, 8(sp)

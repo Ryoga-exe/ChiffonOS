@@ -167,6 +167,8 @@ pub fn exec(bytes: []const u8, w: *std.Io.Writer) ExecError!void {
 
 pub export fn execReturnTrampoline() callconv(.naked) void {
     asm volatile (
+        \\ lui gp, %hi(__global_pointer$)
+        \\ addi gp, gp, %lo(__global_pointer$)
         \\ la t0, exec_ctx
         \\ ld sp, %[off_sp](t0)
         \\ ld gp, %[off_gp](t0)
