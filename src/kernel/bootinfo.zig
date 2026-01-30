@@ -1,6 +1,6 @@
 const mmio = @import("drivers/mmio.zig");
 
-pub const BOOTINFO_ADDR: usize = 0x8000_1000;
+pub const BOOTINFO_ADDR: usize = 0x803F_1000;
 pub const MAGIC: u32 = 0x4342_4f54; // 'CBOT'
 
 pub const FsType = enum(u32) {
