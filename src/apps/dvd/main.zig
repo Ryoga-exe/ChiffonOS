@@ -1,7 +1,7 @@
 const uart = @import("common").Uart;
 const syscall = @import("common").syscall;
 
-const BOOTINFO_ADDR: usize = 0x8000_1000;
+const BOOTINFO_ADDR: usize = 0x803F_1000;
 const MAGIC: u32 = 0x4342_4f54; // 'CBOT'
 
 const Info = struct {
