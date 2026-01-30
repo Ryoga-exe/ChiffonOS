@@ -12,6 +12,14 @@ inline fn rawPut(c: u8) void {
     thr.* = c;
 }
 
+pub fn hasChar() bool {
+    return (lsr.* & 0x01) != 0;
+}
+
+pub fn readChar() u8 {
+    return rbr.*;
+}
+
 pub fn putc(c: u8) void {
     if (c == '\n') rawPut('\r');
     rawPut(c);
@@ -24,6 +32,11 @@ pub fn puts(s: []const u8) void {
 pub fn getChar() u8 {
     while ((lsr.* & 0x01) == 0) {}
     return rbr.*;
+}
+
+pub fn tryGetChar() ?u8 {
+    if (!hasChar()) return null;
+    return readChar();
 }
 
 pub const Writer = struct {

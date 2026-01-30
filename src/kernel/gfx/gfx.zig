@@ -38,3 +38,45 @@ pub const Gfx = struct {
         self.back = tmp;
     }
 };
+
+var global: ?Gfx = null;
+
+pub fn initGlobal(fb0: u32, fb1: u32) void {
+    global = Gfx.init(fb0, fb1);
+}
+
+pub fn isReady() bool {
+    return global != null;
+}
+
+pub fn beginGlobal() bool {
+    if (global) |*g| {
+        g.begin();
+        return true;
+    }
+    return false;
+}
+
+pub fn clearGlobal(rgb: u32) bool {
+    if (global) |*g| {
+        g.clear(rgb);
+        return true;
+    }
+    return false;
+}
+
+pub fn fillRectGlobal(x: u32, y: u32, w: u32, h: u32, rgb: u32) bool {
+    if (global) |*g| {
+        g.fillRect(x, y, w, h, rgb);
+        return true;
+    }
+    return false;
+}
+
+pub fn presentGlobal() bool {
+    if (global) |*g| {
+        g.endAndPresent();
+        return true;
+    }
+    return false;
+}

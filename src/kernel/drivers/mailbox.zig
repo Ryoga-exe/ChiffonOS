@@ -1,8 +1,8 @@
 const mmio = @import("mmio.zig");
 
 // mailbox (written by ipynb)
-pub const fb0_addr: usize = 0x8000_2000;
-pub const fb1_addr: usize = 0x8000_2008;
+pub const fb0_addr: usize = 0x803F_0000;
+pub const fb1_addr: usize = 0x803F_0008;
 
 pub const FbPair = struct { fb0: u32, fb1: u32 };
 
