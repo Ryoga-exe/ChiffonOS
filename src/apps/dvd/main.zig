@@ -24,6 +24,18 @@ inline fn read64(addr: usize) u64 {
     return @as(*volatile u64, @ptrFromInt(addr)).*;
 }
 
+const UART_BASE: usize = 0x1000_0000;
+const UART_LSR: usize = UART_BASE + 0x05;
+const UART_RBR: usize = UART_BASE + 0x00;
+
+fn uartHasChar() bool {
+    return (@as(*volatile u8, @ptrFromInt(UART_LSR)).* & 0x01) != 0;
+}
+
+fn uartReadChar() u8 {
+    return @as(*volatile u8, @ptrFromInt(UART_RBR)).*;
+}
+
 fn readBootInfo() ?Info {
     const magic = read32(BOOTINFO_ADDR + 0x00);
     if (magic != MAGIC) return null;
@@ -227,5 +239,13 @@ pub export fn main() noreturn {
         }
 
         busyWaitCycles(2_000_000);
+
+        if (uartHasChar()) {
+            const c = uartReadChar();
+            if (c == 'q' or c == 'Q') {
+                uart.puts("[dvd] exit by key\n");
+                syscall.exit(0);
+            }
+        }
     }
 }
