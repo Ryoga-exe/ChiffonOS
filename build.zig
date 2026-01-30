@@ -72,6 +72,19 @@ pub fn build(b: *std.Build) !void {
                     },
                 }),
             });
+            if (std.mem.eql(u8, app_name, "doomgeneric")) {
+                app.addCSourceFiles(.{
+                    .files = &.{
+                        "src/apps/doomgeneric/c/chiffon_dg.c",
+                        "src/apps/doomgeneric/c/chiffon_rt.c",
+                        "src/apps/doomgeneric/c/doomgeneric_stub.c",
+                    },
+                    .flags = &.{
+                        "-ffreestanding",
+                        "-fno-builtin",
+                    },
+                });
+            }
             app.setLinkerScript(b.path("src/apps/app.ld"));
             app.entry = .{ .symbol_name = "_start" };
             _ = rootfs_wf.addCopyFile(app.getEmittedBin(), b.fmt("bin/{s}.elf", .{app_name}));
